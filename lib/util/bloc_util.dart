@@ -3,8 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:red_browser/bloc/bloc_clean.dart';
 import 'package:red_browser/bloc/bloc_loading.dart';
 import 'package:red_browser/bloc/bloc_tab.dart';
-import '../bloc/bloc_provider.dart';
-import '../bloc/block_launch.dart';
+import '../bloc/bloc_launch.dart';
 import '../util/browser_util.dart';
 
 class BlocUtil {
@@ -14,16 +13,12 @@ class BlocUtil {
   }
   BlocUtil._internal();
 
-  void launchStateUpdate(BuildContext context, fuction(value)) {
-    BlocProvider.of<BlockLaunch>(context).first.counter.listen(fuction);
+  static void progressingAnimation(BuildContext context) {
+    Provider.of<BlocLaunch>(context, listen: false).startProgressAnimation();
   }
 
-  void launching(BuildContext context) {
-    BlocProvider.of<BlockLaunch>(context).first.launched(false);
-  }
-
-  void launched(BuildContext context) {
-    BlocProvider.of<BlockLaunch>(context).first.launched(true);
+  static void launching(BuildContext context) {
+    Provider.of<BlocLaunch>(context, listen: false).updateLaunched(false);
   }
 
   void updateLoadingProgress(BuildContext context, double progress) {

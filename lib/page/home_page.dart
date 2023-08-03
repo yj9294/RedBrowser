@@ -1,8 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:red_browser/util/app_util.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import '../util/app_util.dart';
 import '../bloc/bloc_loading.dart';
 import '../util/bloc_util.dart';
 import '../util/router_util.dart';
@@ -69,7 +69,6 @@ class _HomePageState extends State<HomePage> with RouteAware {
 
   @override
   void initState() {
-    // AppTrackingTransparency.requestTrackingAuthorization();
     editingController = TextEditingController();
     _getState();
     super.initState();

@@ -1,8 +1,8 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
-import '../util/bloc_util.dart';
-import '../util/app_util.dart';
+import 'package:provider/provider.dart';
+import 'package:red_browser/bloc/bloc_launch.dart';
+import 'package:red_browser/util/app_util.dart';
+import 'package:red_browser/util/bloc_util.dart';
 import '../component/progress.dart';
 
 class LaunchPage extends StatefulWidget {
@@ -12,44 +12,17 @@ class LaunchPage extends StatefulWidget {
 }
 
 class _LaunchPageState extends State<LaunchPage> {
-  var progress = 0.0;
-  var duration = 2.0;
-  Timer? timer;
-
   @override
   void initState() {
+    if (!AppUtil().isEnterbackground) {
+      BlocUtil.progressingAnimation(context);
+    }
     super.initState();
-
-    // 定时器
-    timer = Timer.periodic(const Duration(milliseconds: 10), (timer) {
-
-      // 当前状态在前台的时候才刷新UI 进度
-      if (!AppUtil.shared.isEnterbackground) {
-        var progress = this.progress + (0.01 / duration);
-        if (progress >= 1.0) {
-          timer.cancel();
-          launched();
-          return;
-        }
-        setState(() {
-          this.progress = progress;
-        });
-      } else {
-        setState(() {
-          progress = 0.0;
-        });
-      }
-    });
-  }
-
-  void launched() {
-    BlocUtil.shared.launched(context);
   }
 
   @override
   void dispose() {
     super.dispose();
-    timer?.cancel();
   }
 
   @override
@@ -77,9 +50,12 @@ class _LaunchPageState extends State<LaunchPage> {
                     'assets/images/launch_icon.png',
                   ),
                   Container(
-                    padding: const EdgeInsets.only(left: 50, right: 50),
-                    child: ProgressView(progress),
-                  )
+                      padding: const EdgeInsets.only(left: 50, right: 50),
+                      child: Consumer<BlocLaunch>(
+                        builder: (context, blocLaunch, child) {
+                          return ProgressView(blocLaunch.progress);
+                        },
+                      ))
                 ]),
           )),
     );
