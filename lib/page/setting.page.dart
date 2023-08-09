@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:red_browser/util/event_util.dart';
 import 'package:share/share.dart';
 import 'package:launch_review/launch_review.dart';
 import 'home_page.dart';
@@ -8,6 +11,7 @@ import '../page/privacy_page.dart';
 import '../util/app_util.dart';
 import '../util/browser_util.dart';
 import '../util/router_util.dart';
+import '../main.dart';
 
 class SettingPage extends StatefulWidget {
   @override
@@ -17,13 +21,22 @@ class SettingPage extends StatefulWidget {
 }
 
 class _SettingPageState extends State<SettingPage> {
+
+  StreamSubscription? _subscription;
+
   @override
   void initState() {
     super.initState();
+    // 监听app应用进入前台
+    _subscription = EventBusUtil().enterForeground.on<bool>().listen((event) {
+      Navigator.pop(context);
+    });
   }
+
 
   @override
   void dispose() {
+    _subscription?.cancel();
     super.dispose();
   }
 

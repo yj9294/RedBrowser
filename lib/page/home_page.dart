@@ -1,6 +1,15 @@
+import 'dart:async';
+
+import 'package:event_bus/event_bus.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:provider/provider.dart';
+import 'package:red_browser/bloc/bloc_ad.dart';
+import 'package:red_browser/model/gad_model.dart';
+import 'package:red_browser/model/gad_position.dart';
+import 'package:red_browser/util/event_util.dart';
+import 'package:red_browser/util/gad_util.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import '../util/app_util.dart';
 import '../bloc/bloc_loading.dart';
@@ -24,6 +33,7 @@ class _HomePageState extends State<HomePage> with RouteAware {
   TextEditingController? editingController;
   var isNavigation = true;
   var tabCount = "";
+  StreamSubscription? _subscription;
 
   @override
   void didChangeDependencies() {
@@ -36,42 +46,53 @@ class _HomePageState extends State<HomePage> with RouteAware {
     editingController = null;
     webViewController = null;
     routeObserver.unsubscribe(this);
+    _subscription?.cancel();
+    debugPrint("$this dispose 🔥🔥🔥🔥");
     super.dispose();
+  }
+
+  @override
+  void didPopNext() {
+    super.didPopNext();
+    debugPrint("home出现");
+    BrowserUtil().item.url.then((value) {
+      BlocUtil.shared.updateSearchText(context, value);
+    });
+    _getState();
+    _refreshAD();
+  }
+
+  @override
+  void didPush() {
+    super.didPush();
+    debugPrint("home出现");
+    BrowserUtil().item.url.then((value) {
+      BlocUtil.shared.updateSearchText(context, value);
+    });
+    _getState();
+    _refreshAD();
   }
 
   @override
   void didPop() {
     super.didPop();
-  }
-
-  @override
-  void didPopNext() {
-    BrowserUtil().item.url.then((value) {
-      BlocUtil.shared.updateSearchText(context, value);
-    });
-    _getState();
-    super.didPopNext();
-  }
-
-  @override
-  void didPush() {
-    BrowserUtil().item.url.then((value) {
-      BlocUtil.shared.updateSearchText(context, value);
-    });
-    _getState();
-    super.didPush();
+    debugPrint("home消失");
   }
 
   @override
   void didPushNext() {
     super.didPushNext();
+    debugPrint("home消失");
+    _dismissAD();
   }
 
   @override
   void initState() {
-    editingController = TextEditingController();
-    _getState();
     super.initState();
+    editingController = TextEditingController();
+    _adEvent();
+    _refreshAD();
+    _getState();
   }
 
   // 前进后退
@@ -82,6 +103,39 @@ class _HomePageState extends State<HomePage> with RouteAware {
     webViewController?.canGoForward().then((canGoForward) {
       return BlocUtil.updateCanGoForward(context, canGoForward);
     });
+  }
+
+  bool isNeedShowNative() {
+     return DateTime.now().difference(GADUtil().homeImpressionDate).inSeconds
+         > 10;
+  }
+
+  void _refreshAD() async {
+    _adEvent();
+    GADUtil().load(GADPosition.native);
+  }
+
+  void _adEvent() {
+    _subscription?.cancel();
+    _subscription = EventBusUtil().eventBus.on<GADModel?>().listen((model) {
+      GADUtil().show(GADPosition.native);
+      if (model is GADNativeModel) {
+        if (!isNeedShowNative()) {
+          debugPrint("[AD] home 原生广告10s展示间隔 或 预加载的数据");
+          return;
+        }
+        debugPrint("[AD] 当前显示的home广告ID${model.ad?.responseInfo?.responseId}");
+        GADUtil().homeImpressionDate = DateTime.now();
+        BlocUtil.loadNativeAD(context, model);
+      }
+    });
+    _subscription?.resume();
+  }
+
+  void _dismissAD() {
+    _subscription?.cancel();
+    GADUtil().disAppear(GADPosition.native);
+    BlocUtil.loadNativeAD(context, null);
   }
 
   void _getState() async {
@@ -107,12 +161,13 @@ class _HomePageState extends State<HomePage> with RouteAware {
     final isNavigation = await BrowserUtil().item.isNavigation;
     final count = BrowserUtil().items.length;
     final url = await BrowserUtil().item.url;
-
-    setState(() {
-      editingController?.text = url;
-      this.isNavigation = isNavigation;
-      tabCount = "$count";
-    });
+    if (mounted) {
+      setState(() {
+        editingController?.text = url;
+        this.isNavigation = isNavigation;
+        tabCount = "$count";
+      });
+    }
   }
 
   @override
@@ -197,13 +252,12 @@ class _HomePageState extends State<HomePage> with RouteAware {
   // 浏览器界面
   Widget _contentView() {
     return Container(
-      padding: const EdgeInsets.only(top: 15),
+      padding: const EdgeInsets.only(top: 5),
       child: ClipRRect(
           borderRadius: const BorderRadius.only(
               topLeft: Radius.circular(40), topRight: Radius.circular(40)),
           child: Container(
             color: Colors.white,
-            padding: const EdgeInsets.only(top: 0),
             child: _contentChild(),
           )),
     );
@@ -215,9 +269,11 @@ class _HomePageState extends State<HomePage> with RouteAware {
       return WebViewWidget(controller: webViewController!);
     }
     return Column(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Container(
-          padding: const EdgeInsets.only(top: 50, bottom: 50),
+          padding: const EdgeInsets.only(top: 20, bottom: 20),
           child: Image.asset(
             'assets/images/home_icon.png',
           ),
@@ -232,6 +288,18 @@ class _HomePageState extends State<HomePage> with RouteAware {
           childAspectRatio: 90.0 / 72.0,
           children: _getData(),
         ),
+        Container(
+            width: 328,
+            height: 128,
+            child: SizedBox(
+                width: 328,
+                height: 128,
+                child: Consumer<BlocAD>(builder: (context, blocAD, child) {
+                  return (blocAD.nativeModel != null &&
+                          blocAD.nativeModel?.ad != null)
+                      ? AdWidget(ad: blocAD.nativeModel!.ad!)
+                      : const Center();
+                })))
       ],
     );
   }
@@ -313,17 +381,21 @@ class _HomePageState extends State<HomePage> with RouteAware {
       if (editingController?.text.isNotEmpty == true) {
         BlocUtil().updateLoadingStatus(context, !isLoading);
         BrowserUtil.shared.item.loadUrl(editingController!.text);
-        setState(() {
-          isNavigation = false;
-        });
+        if (mounted) {
+          setState(() {
+            isNavigation = false;
+          });
+        }
       } else {
         AppUtil.alert(context, "Please enter your search content.");
       }
     } else {
       BrowserUtil.shared.item.stopLoad();
-      setState(() {
-        editingController?.text = "";
-      });
+      if (mounted) {
+        setState(() {
+          editingController?.text = "";
+        });
+      }
     }
   }
 
@@ -343,10 +415,13 @@ class _HomePageState extends State<HomePage> with RouteAware {
   }
 
   void _goCleanAlert() {
-    RouterUtil.goCleanAlert(context);
+    RouterUtil.goCleanAlert(context, () {
+      RouterUtil.goCleanPage(context);
+    });
   }
 
   void _goTab() {
+    _dismissAD();
     RouterUtil.goTabPage(context);
   }
 

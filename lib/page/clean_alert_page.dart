@@ -1,23 +1,46 @@
+import 'dart:async';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:red_browser/config/color.dart';
+import 'package:red_browser/util/event_util.dart';
 import 'package:red_browser/util/router_util.dart';
 
+
+typedef CleanConfirmHandle = void Function();
+
 class CleanAlertPage extends StatefulWidget {
+  CleanConfirmHandle confirm;
+
+  CleanAlertPage(this.confirm);
+
   @override
   State<StatefulWidget> createState() {
-    return _CleanAlertPageState();
+    return _CleanAlertPageState(confirm);
   }
 }
 
 class _CleanAlertPageState extends State<CleanAlertPage> {
+
+  StreamSubscription? _subscription;
+
+  CleanConfirmHandle confirm;
+
+  _CleanAlertPageState(this.confirm);
+
   @override
   void initState() {
     super.initState();
+    // 监听app应用进入前台
+    _subscription = EventBusUtil().enterForeground.on<bool>().listen((event) {
+      Navigator.pop(context);
+    });
   }
 
   @override
   void dispose() {
+    _subscription?.cancel();
+    debugPrint("$this dispose 🔥🔥🔥🔥");
     super.dispose();
   }
 
@@ -27,7 +50,7 @@ class _CleanAlertPageState extends State<CleanAlertPage> {
 
   void goClean() {
     Navigator.pop(context);
-    RouterUtil.goCleanPage(context);
+    confirm();
   }
 
   @override

@@ -36,6 +36,9 @@ dependencies:
   launch_review:
   flutter_facebook_sdk:
   app_tracking_transparency:
+  google_mobile_ads:
+  shared_preferences:
+  event_bus:
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
@@ -97,3 +100,4 @@ flutter:
     - assets/images/
     - assets/images/2.0x/
     - assets/images/3.0x/
+    - assets/data/config.json

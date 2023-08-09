@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:red_browser/bloc/bloc_ad.dart';
+import 'package:red_browser/util/event_util.dart';
+import 'package:red_browser/util/gad_util.dart';
+import 'package:red_browser/util/router_util.dart';
 import '../bloc/bloc_loading.dart';
 import './util/app_util.dart';
 import './util/bloc_util.dart';
@@ -7,8 +11,12 @@ import './bloc/bloc_launch.dart';
 import './page/home_page.dart';
 import './page/launch_page.dart';
 import 'package:app_tracking_transparency/app_tracking_transparency.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  MobileAds.instance.initialize();
+
   runApp(const MyApp());
 }
 
@@ -50,9 +58,25 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    // 监听广告的生命周期
+    AppStateEventNotifier.startListening();
+    AppStateEventNotifier.appStateStream
+        .forEach((state) => _onAppStateChanged(state));
+
     AppTrackingTransparency.requestTrackingAuthorization();
     // 监听app应用状态
     WidgetsBinding.instance.addObserver(this);
+    // 配置
+    GADUtil().requestConfig();
+  }
+
+  void _onAppStateChanged(AppState state) {
+    switch (state) {
+      case AppState.foreground:
+        debugPrint('[AD] foreground');
+      case AppState.background:
+        debugPrint("[AD] background");
+    }
   }
 
   @override
@@ -66,7 +90,8 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
         return const LaunchPage();
       }
       return MultiProvider(
-        providers: [ChangeNotifierProvider(create: (_) => BlocLoading())],
+        providers: [ChangeNotifierProvider(create: (_) => BlocLoading()),
+          ChangeNotifierProvider(create: (_) => BlocAD())],
         child: const HomePage(),
       );
     });
@@ -76,29 +101,38 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
     switch (state) {
-      //进入应用时候不会触发该状态 应用程序处于可见状态，并且可以响应用户的输入事件。它相当于 Android 中Activity的onResume
+
+      // 进入应用时候不会触发该状态 应用程序处于可见状态，并且可以响应用户的输入事件。它相当于 Android 中Activity的onResume
       case AppLifecycleState.resumed:
-        debugPrint("应用进入前台======");
-        AppUtil().isEnterbackground = false;
-        BlocUtil.progressingAnimation(context);
-        break;
-      //应用状态处于闲置状态，并且没有用户的输入事件，
+        debugPrint("active");
+        AppUtil().isEnterBackground = false;
+        // 当前没得插屏广告时
+        if (!AppUtil().isPresentedAD) {
+          // 开始动画
+          BlocUtil.progressingAnimation(context);
+          // 退到根部
+          EventBusUtil().enterForeground.fire(true);
+        }
+
+        // 应用状态处于闲置状态，并且没有用户的输入事件，
       case AppLifecycleState.inactive:
-        debugPrint("应用处于闲置状态，这种状态的应用应该假设他们可能在任何时候暂停 切换到后台会触发======");
-        AppUtil().isEnterbackground = true;
-        BlocUtil.launching(context);
-        break;
-      //当前页面即将退出
+        debugPrint("inActive");
+        AppUtil().isEnterBackground = true;
+        if (!AppUtil().isPresentedAD) {
+          BlocUtil.launching(context);
+        }
+        // 当前app即将退出
       case AppLifecycleState.detached:
-        debugPrint("当前页面即将退出======");
-        break;
+        debugPrint("detached");
+
+        // 界面隐藏状态
       case AppLifecycleState.hidden:
-        debugPrint("应用处于隐藏状态 后台======");
-        break;
-      // 应用程序处于不可见状态
+        debugPrint("hidden");
+
+        // 应用程序hold didEnterBackground
       case AppLifecycleState.paused:
-        debugPrint("应用处于不可见状态 后台======");
-        break;
+        debugPrint("hold");
+        AppUtil().isEnterBackground = true;
     }
   }
 }

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:red_browser/bloc/bloc_ad.dart';
 import 'package:red_browser/bloc/bloc_clean.dart';
+import 'package:red_browser/main.dart';
 import '../bloc/bloc_tab.dart';
 import '../page/clean_alert_page.dart';
 import '../page/clean_page.dart';
@@ -18,7 +20,9 @@ class RouterUtil {
         context,
         MaterialPageRoute(
             builder: (context) => MultiProvider(
-                  providers: [ChangeNotifierProvider(create: (_) => BlocTab())],
+                  providers: [ChangeNotifierProvider(create: (_) => BlocTab()
+                  ), ChangeNotifierProvider(create: (_) => BlocAD()
+                  )],
                   child: const TabPage(),
                 )));
   }
@@ -32,8 +36,9 @@ class RouterUtil {
         context, MaterialPageRoute(builder: (context) => PrivacyPage(type)));
   }
 
-  static goCleanAlert(BuildContext context) {
-    Navigator.push(context, TransformPageRoute((context) => CleanAlertPage()));
+  static goCleanAlert(BuildContext context, CleanConfirmHandle confirm) {
+    Navigator.push(context, TransformPageRoute((context) => CleanAlertPage
+      (confirm)));
   }
 
   static goCleanPage(BuildContext context) {

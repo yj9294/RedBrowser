@@ -1,8 +1,10 @@
 import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
+import 'package:red_browser/bloc/bloc_ad.dart';
 import 'package:red_browser/bloc/bloc_clean.dart';
 import 'package:red_browser/bloc/bloc_loading.dart';
 import 'package:red_browser/bloc/bloc_tab.dart';
+import 'package:red_browser/model/gad_model.dart';
 import '../bloc/bloc_launch.dart';
 import '../util/browser_util.dart';
 
@@ -48,4 +50,8 @@ class BlocUtil {
   static void clean(BuildContext context) {
     Provider.of<BlocClean>(context, listen: false).clean();
   }
+
+    static void loadNativeAD(BuildContext context, GADNativeModel? model) {
+      Provider.of<BlocAD>(context, listen: false).updateNativeAD(model);
+    }
 }

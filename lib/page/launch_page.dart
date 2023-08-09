@@ -14,14 +14,17 @@ class LaunchPage extends StatefulWidget {
 class _LaunchPageState extends State<LaunchPage> {
   @override
   void initState() {
-    if (!AppUtil().isEnterbackground) {
+    super.initState();
+
+    // 进入后台时候不进行加载
+    if (!AppUtil().isEnterBackground) {
       BlocUtil.progressingAnimation(context);
     }
-    super.initState();
   }
 
   @override
   void dispose() {
+    debugPrint("$this dispose 🔥🔥🔥🔥");
     super.dispose();
   }
 

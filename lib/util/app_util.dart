@@ -10,7 +10,8 @@ class AppUtil {
 
   AppUtil._internal();
 
-  var isEnterbackground = false;
+  var isEnterBackground = false;
+  var isPresentedAD = false;
 
   var appID = 414478124;
 

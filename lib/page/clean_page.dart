@@ -1,11 +1,16 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:red_browser/bloc/bloc_clean.dart';
 import 'package:red_browser/util/bloc_util.dart';
 import 'package:red_browser/util/browser_util.dart';
+import 'package:red_browser/util/event_util.dart';
+import 'package:red_browser/util/gad_util.dart';
 
 class CleanPage extends StatefulWidget {
   const CleanPage({super.key});
+
   @override
   State<StatefulWidget> createState() {
     return _CleanPage();
@@ -13,13 +18,22 @@ class CleanPage extends StatefulWidget {
 }
 
 class _CleanPage extends State<CleanPage> {
+  StreamSubscription? _subscription;
+
   @override
   void dispose() {
+    _subscription?.cancel();
     super.dispose();
   }
 
   @override
   void initState() {
+    super.initState();
+
+    // 监听应用进入前台
+    _subscription = EventBusUtil().enterForeground.on<bool>().listen((event) {
+      Navigator.pop(context);
+    });
 
     // 开启动画
     BlocUtil.clean(context);
@@ -32,8 +46,6 @@ class _CleanPage extends State<CleanPage> {
         Navigator.pop(context);
       }
     });
-
-    super.initState();
   }
 
   @override
@@ -57,11 +69,12 @@ class _CleanPage extends State<CleanPage> {
                 width: MediaQuery.sizeOf(context).width,
                 padding: const EdgeInsets.only(top: 20),
                 alignment: Alignment.center,
-                child: Consumer<BlocClean>(builder: (context, blocClean,
-                child) {
-                  return Text('Cleaning...${(blocClean.progress * 100).truncate()
-                  }');
-                },))
+                child: Consumer<BlocClean>(
+                  builder: (context, blocClean, child) {
+                    return Text(
+                        'Cleaning...${(blocClean.progress * 100).truncate()}');
+                  },
+                ))
           ],
         ),
       ),

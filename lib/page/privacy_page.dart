@@ -1,23 +1,36 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:red_browser/util/event_util.dart';
 
 class PrivacyPage extends StatefulWidget {
   final PageType type;
+
   const PrivacyPage(this.type, {super.key});
+
   @override
   State<StatefulWidget> createState() {
     return _PrivacyPageState(type);
   }
 }
+
 class _PrivacyPageState extends State<PrivacyPage> {
+  StreamSubscription? _subscription;
   PageType type;
+
   _PrivacyPageState(this.type);
+
   @override
   void initState() {
     super.initState();
+    _subscription = EventBusUtil().enterForeground.on<bool>().listen((event) {
+      Navigator.pop(context);
+    });
   }
 
   @override
   void dispose() {
+    _subscription?.cancel();
     super.dispose();
   }
 
@@ -29,17 +42,13 @@ class _PrivacyPageState extends State<PrivacyPage> {
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
-        children: [
-          Text(type.body)
-        ],
+        children: [Text(type.body)],
       ),
     );
   }
 }
 
-enum PageType {
-  privacy, terms
-}
+enum PageType { privacy, terms }
 
 extension PageTypeExtension on PageType {
   String get title {

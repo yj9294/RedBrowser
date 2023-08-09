@@ -1,10 +1,18 @@
+import 'dart:async';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:provider/provider.dart';
+import 'package:red_browser/bloc/bloc_ad.dart';
 import 'package:red_browser/bloc/bloc_tab.dart';
 import 'package:red_browser/config/color.dart';
+import 'package:red_browser/model/gad_model.dart';
+import 'package:red_browser/model/gad_position.dart';
 import 'package:red_browser/util/bloc_util.dart';
 import 'package:red_browser/util/browser_util.dart';
+import 'package:red_browser/util/event_util.dart';
+import 'package:red_browser/util/gad_util.dart';
 import 'package:red_browser/util/router_util.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
@@ -19,14 +27,50 @@ class TabPage extends StatefulWidget {
 
 class TabPageState extends State<TabPage> {
 
+  StreamSubscription? _subscription;
+  StreamSubscription? _foregroundSubscription;
+
   @override
   void dispose() {
+    _subscription?.cancel();
+    _foregroundSubscription?.cancel();
+    debugPrint("$this dispose 🔥🔥🔥🔥");
     super.dispose();
   }
 
   @override
   void initState() {
     super.initState();
+    _refreshAD();
+    _adObserver();
+  }
+
+  bool isNeedShowNative() {
+    return DateTime.now().difference(GADUtil().tabImpressionDate).inSeconds
+        > 10;
+  }
+
+  void _adObserver() {
+    _subscription = EventBusUtil().eventBus.on<GADModel?>().listen((model) {
+      GADUtil().show(GADPosition.native);
+      if (model is GADNativeModel) {
+        if (!isNeedShowNative()) {
+          debugPrint("[AD] tab 原生广告10s展示间隔 或 预加载数据.");
+          return;
+        }
+        debugPrint("[AD] 当前显示的tab广告ID${model.ad?.responseInfo?.responseId}");
+        GADUtil().tabImpressionDate = DateTime.now();
+        BlocUtil.loadNativeAD(context, model);
+      }
+    });
+
+    _foregroundSubscription = EventBusUtil().enterForeground.on<bool>().listen((event) {
+      Navigator.pop(context);
+    });
+  }
+
+  void _refreshAD() async {
+    GADUtil().load(GADPosition.native);
   }
 
   @override
@@ -45,11 +89,28 @@ class TabPageState extends State<TabPage> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Flexible(child: _getCollectionView(blocTab.items)),
+                _getNativeADView(),
                 _getBottomView(),
               ],
             ),
           ));
     });
+  }
+
+  Widget _getNativeADView() {
+    return Container(
+        alignment: Alignment.center,
+        width: 328,
+        height: 128,
+        child: SizedBox(
+            width: 328,
+            height: 128,
+            child: Consumer<BlocAD>(builder: (context, blocAD, child) {
+              return (blocAD.nativeModel != null &&
+                  blocAD.nativeModel?.ad != null)
+                  ? AdWidget(ad: blocAD.nativeModel!.ad!)
+                  : const Center();
+            })));
   }
 
   Widget _getCollectionView(List<BrowserItem> items) {
@@ -69,7 +130,7 @@ class TabPageState extends State<TabPage> {
   }
 
   List<Widget> _getData(List<BrowserItem> items) {
-    return List<Widget>.from(items.map((e) => _TabRow(e)));
+    return List<Widget>.from(items.map((e) => _TabRow(e, subscription: _subscription)));
   }
 
   Widget _getBottomView() {
@@ -78,7 +139,7 @@ class TabPageState extends State<TabPage> {
       children: [
         CupertinoButton(
             onPressed: newBrowser,
-            padding: EdgeInsets.zero,
+            padding: const EdgeInsets.only(top: 30),
             child: Image.asset('assets/images/tab_add.png')),
         Row(
           children: [
@@ -87,7 +148,7 @@ class TabPageState extends State<TabPage> {
               padding: const EdgeInsets.only(right: 20),
               child: CupertinoButton(
                   onPressed: goBack,
-                  padding: EdgeInsets.zero,
+                  padding: const EdgeInsets.only(top: 30),
                   child: const Text('Back')),
             )
           ],
@@ -97,30 +158,35 @@ class TabPageState extends State<TabPage> {
   }
 
   void goBack() {
+    _subscription?.cancel();
+    GADUtil().disAppear(GADPosition.native);
+    BlocUtil.loadNativeAD(context, null);
     RouterUtil.pop(context);
   }
 
   void newBrowser() {
     BrowserUtil().add();
-    RouterUtil.pop(context);
+    goBack();
   }
 }
 
 class _TabRow extends StatefulWidget {
   final BrowserItem item;
+  StreamSubscription? subscription;
 
-  const _TabRow(this.item);
+  _TabRow(this.item, {this.subscription});
 
   @override
   State<StatefulWidget> createState() {
-    return _TabRowState(item);
+    return _TabRowState(item, subscription: subscription);
   }
 }
 
 class _TabRowState extends State<_TabRow> {
   BrowserItem item;
+  StreamSubscription? subscription;
 
-  _TabRowState(this.item);
+  _TabRowState(this.item, {this.subscription});
 
   var isNavigation = true;
 
@@ -180,7 +246,10 @@ class _TabRowState extends State<_TabRow> {
   }
 
   void _select() {
+    subscription?.cancel();
     BrowserUtil().selected(item);
+    GADUtil().disAppear(GADPosition.native);
+    BlocUtil.loadNativeAD(context, null);
     RouterUtil.pop(context);
   }
 
